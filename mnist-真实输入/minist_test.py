@@ -30,8 +30,15 @@ def test(mnist):
         
         #准确预测值当相
         correct_prediction=tf.equal(tf.argmax(y,1),tf.argmax(y_,1))
-        #tf.cast转换数据类型
-        accuracy=tf.reduce_mean(tf.cast(correct_prediction,tf.float32))
+        with tf.name_scope('accuracy_summary'):
+            #tf.cast转换数据类型
+            accuracy=tf.reduce_mean(tf.cast(correct_prediction,tf.float32))
+            tf.summary.scalar('accuracy',accuracy)
+            
+        
+        #收集summary
+        merged=tf.summary.merge_all()
+            
         
         while True:
             with tf.Session() as sess:
@@ -42,20 +49,21 @@ def test(mnist):
                     print(ckpt.model_checkpoint_path)
                     #恢复会话
                     saver.restore(sess,ckpt.model_checkpoint_path)
-                    
+                    #加载写入器
+                    writer=tf.summary.FileWriter("./logs1/",sess.graph)
                     #恢复轮数
                     global_step=ckpt.model_checkpoint_path.split('/')[-1].split('-')[-1]
                     #计算准确率
-                    accuracy_score=sess.run(accuracy,feed_dict={x:mnist.test.images,y_:mnist.test.labels})
+                    accuracy_score, summary=sess.run([accuracy,merged], feed_dict={x:mnist.test.images,y_:mnist.test.labels})
+                    writer.add_summary(summary)
                     #打印提示
-                    
                     print("after %s training step(s), test accuracy = %g" % (global_step,accuracy_score))
                    # print("The current training steps' w2 is:", sess.run(g.get_tensor_by_name("w2:0")))
                    # print("The current training steps' b2 is:", sess.run(g.get_tensor_by_name("b2:0")))
-                 
+                   
+                    
                 else:
                     print("No checkpoint file found!")
-                    return
             #引入时间线程，睡眠5秒
             time.sleep(TEST_INTERVAL_SECS)
             

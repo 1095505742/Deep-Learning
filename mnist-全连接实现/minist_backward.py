@@ -45,8 +45,10 @@ def backward(mnist):
     ce=tf.nn.sparse_softmax_cross_entropy_with_logits(logits=y,labels=tf.arg_max(y_,1))
     #求标平均值
     cem=tf.reduce_mean(ce)
-    #正则化后的losse值
-    loss=cem+tf.add_n(tf.get_collection("losses"))
+    with tf.name_scope('loss'):
+        #正则化后的losse值
+        loss=cem+tf.add_n(tf.get_collection("losses"))
+        tf.summary.scalar('loss',loss)
     
     #学习率的指数衰减
     learning_rate=tf.train.exponential_decay(LEARNING_RATE_BASE,global_step,mnist.train.num_examples/BATCH_SIZE,LEARNING_RATE_DECAY,staircase=True)
@@ -82,7 +84,8 @@ def backward(mnist):
                 print("After %d training step(s), loss on training batch is %g." % (step,loss_value))
                 #存储器，进行存储，将当前的计算模型
                 saver.save(sess,os.path.join(MODEL_SAVE_PATH, MODEL_NAME), global_step=global_step)
-            
+        
+        writer=tf.train.SummaryWriter("logs/",sess.graph)
         
             
             

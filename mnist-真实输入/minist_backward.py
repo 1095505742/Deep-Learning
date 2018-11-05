@@ -32,6 +32,7 @@ MODEL_SAVE_PATH="./model/"
 #模型名称
 MODEL_NAME="mnist_model"
 
+
 def backward(mnist):
     
     #生成输入占位，标准输出占位
@@ -46,8 +47,10 @@ def backward(mnist):
     ce=tf.nn.sparse_softmax_cross_entropy_with_logits(logits=y,labels=tf.arg_max(y_,1))
     #求标平均值
     cem=tf.reduce_mean(ce)
-    #正则化后的losse值
-    loss=cem+tf.add_n(tf.get_collection("losses"))
+    with tf.name_scope('loss_summary'):
+        #正则化后的losse值
+        loss=cem+tf.add_n(tf.get_collection("losses"))
+        tf.summary.scalar('loss',loss)
     
     #学习率的指数衰减
     learning_rate=tf.train.exponential_decay(LEARNING_RATE_BASE,global_step,mnist.train.num_examples/BATCH_SIZE,LEARNING_RATE_DECAY,staircase=True)
@@ -64,6 +67,9 @@ def backward(mnist):
     #实例化Saver    
     saver=tf.train.Saver()
     
+    #收集所有summary
+    merged=tf.summary.merge_all()
+    
     #建立计算会话
     with tf.Session() as sess:
         #初始化所有变量
@@ -74,24 +80,30 @@ def backward(mnist):
       #断点续接功能
         ckpt=tf.train.get_checkpoint_state(MODEL_SAVE_PATH)
         if ckpt and ckpt.model_checkpoint_path:
-            saver.restore(sess,ckpt.ckpt_chekpoint_path)
+            saver.restore(sess,ckpt.model_checkpoint_path)
         
 ############################################################################## 
       
+        #生成一个文件写入器
+        writer=tf.summary.FileWriter("./logs/",sess.graph)
+        
         
         #开始训练
         for i in range(STEPS):
             #文件中读取的mnist从它的下一组训练样本开始
             xs,ys=mnist.train.next_batch(BATCH_SIZE)
             #训练结果赋值
-            _, loss_value, step, b=sess.run([train_op ,loss ,global_step,'b2:0'], feed_dict={x:xs,y_:ys})
+            _, loss_value, summary, step=sess.run([train_op ,loss ,merged, global_step], feed_dict={x:xs,y_:ys})
             #每训练1000轮打印一次训练的轮数和误差值，并且保存当前训练的情况
             if i % 1000 == 0:
+                
+                #执行操作，收集点
+                writer.add_summary(summary,i)
                 
                 print("After %d training step(s), loss on training batch is %g." % (step,loss_value))
                 #存储器，进行存储，将当前的计算模型
                 saver.save(sess,os.path.join(MODEL_SAVE_PATH, MODEL_NAME), global_step=global_step)
-   
+       
 
          
 #定义主函数
